@@ -70,7 +70,7 @@ module.exports = function(RED) {
         this.payload = config.payload;
         this.onStep = config.onStep;
         var node = this;
-        var channelPowerState = Array(15).fill(false);
+        var channelPowerState = Array(16).fill(false);
 
 		this.on("input", function(msg, send, done) {
             done = done || function (err) { if (err) { node.error(err, msg) } };
@@ -111,7 +111,7 @@ module.exports = function(RED) {
 
             if (this.channel == 'all') {
                 if (power !== 0) {
-                    for (let i = 0; i < 15; i++) {
+                    for (let i = 0; i < 16; i++) {
                         setChannelPulse(i);
                     }
                 } else {
