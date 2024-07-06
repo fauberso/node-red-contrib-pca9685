@@ -109,7 +109,7 @@ module.exports = function(RED) {
                 }
             }
 
-            if (this.channel == 'all') {
+            if (channel == 'all') {
                 if (power !== 0) {
                     for (let i = 0; i < 16; i++) {
                         setChannelPulse(i);
