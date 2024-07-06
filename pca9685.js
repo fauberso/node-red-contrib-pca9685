@@ -70,6 +70,7 @@ module.exports = function(RED) {
         this.payload = config.payload;
         this.onStep = config.onStep;
         var node = this;
+        var channelPowerState = Array(15).fill(false);
 
 		this.on("input", function(msg, send, done) {
             done = done || function (err) { if (err) { node.error(err, msg) } };
@@ -88,7 +89,7 @@ module.exports = function(RED) {
 			}
 
             const setChannelPulse = (channel) => {
-                return (err) => {
+                const setPulse = (err) => {
                     if (err) {
                         return done(err);
                     }
@@ -100,19 +101,27 @@ module.exports = function(RED) {
                         this.pwm.setDutyCycle(channel, payload/100, onStep, done);
                     }
                 }
+                if (!channelPowerState[channel]) {
+                    this.pwm.channelOn(channel, setPulse);
+                    channelPowerState[channel] = true;
+                } else {
+                    setPulse();
+                }
             }
 
             if (this.channel == 'all') {
                 if (power !== 0) {
                     for (let i = 0; i < 15; i++) {
-                        this.pwm.channelOn(i, setChannelPulse(i));
+                        setChannelPulse(i);
                     }
                 } else {
+                    channelPowerState = Array(15).fill(false);
                     this.pwm.allChannelsOff(done);
                 }
             } else if (power !== 0) {
-                this.pwm.channelOn(channel, setChannelPulse(channel));
+                setChannelPulse(channel)
             } else {
+                channelPowerState[channel] = false;
                 this.pwm.channelOff(channel, done);
             }
 		});
