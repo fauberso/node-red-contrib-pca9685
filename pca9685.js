@@ -61,6 +61,7 @@ module.exports = function(RED) {
 	RED.nodes.registerType("PCA9685", pca9685Node);
 
 	var allChannelsCode = -1;
+	var channelPowerState = Array(16).fill(false);
 	
 	function pca9685OutputNode(config) {
 		RED.nodes.createNode(this,config);
@@ -72,7 +73,6 @@ module.exports = function(RED) {
 		this.payload = config.payload;
 		this.onStep = config.onStep;
 		var node = this;
-		var channelPowerState = Array(16).fill(false);
 
 		this.on("input", function(msg, send, done) {
 			done = done || function (err) { if (err) { node.error(err, msg) } };
