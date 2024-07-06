@@ -59,6 +59,8 @@ module.exports = function(RED) {
 		});
 	}
 	RED.nodes.registerType("PCA9685", pca9685Node);
+
+	var allChannelsCode = -1;
 	
 	function pca9685OutputNode(config) {
 		RED.nodes.createNode(this,config);
@@ -109,7 +111,7 @@ module.exports = function(RED) {
 				}
 			}
 
-			if (channel == 'all') {
+			if (channel === allChannelsCode) { // Do operation for all channels
 				if (power !== 0) {
 					for (let i = 0; i < 16; i++) {
 						setChannelPulse(i);
