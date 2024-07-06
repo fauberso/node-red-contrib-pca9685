@@ -69,23 +69,51 @@ module.exports = function(RED) {
         this.channel = config.channel;
         this.payload = config.payload;
         this.onStep = config.onStep;
+        var node = this;
 
-		this.on("input", function(msg) {
+		this.on("input", function(msg, send, done) {
+            done = done || function (err) { if (err) { node.error(err, msg) } };
 			var unit = msg.unit || this.unit || "percent (assumed)";
 			var channel = parseInt(msg.channel || this.channel || 0);
 			var payload = parseInt(msg.payload || this.payload || 0);
 			var onStep = parseInt(msg.onStep || this.onStep || 0);
+            var power = parseInt(msg.power || 1);
 			
 			if (debugOption) {
-				console.log("Set PCA9685 "+this.pwm+" Output "+channel+" to "+payload+" "+unit);
+                if (power !== 0) {
+                    console.log("Set PCA9685 "+this.pwm+" Output "+channel+" to "+payload+" "+unit);
+                } else {
+                    console.log("Set PCA9685 "+channel+" to OFF");
+                }
 			}
-			
-			if (unit == "microseconds") {
-				this.pwm.setPulseLength(channel, payload, onStep);
-            } else if (unit == "steps") {
-            	this.pwm.setPulseRange(channel, onStep, payload);
+
+            const setChannelPulse = (channel) => {
+                return (err) => {
+                    if (err) {
+                        return done(err);
+                    }
+                    if (unit == "microseconds") {
+                        this.pwm.setPulseLength(channel, payload, onStep, done);
+                    } else if (unit == "steps") {
+                        this.pwm.setPulseRange(channel, onStep, payload, done);
+                    } else {
+                        this.pwm.setDutyCycle(channel, payload/100, onStep, done);
+                    }
+                }
+            }
+
+            if (this.channel == 'all') {
+                if (power !== 0) {
+                    for (let i = 0; i < 15; i++) {
+                        this.pwm.channelOn(i, setChannelPulse(i));
+                    }
+                } else {
+                    this.pwm.allChannelsOff(done);
+                }
+            } else if (power !== 0) {
+                this.pwm.channelOn(channel, setChannelPulse(i));
             } else {
-            	this.pwm.setDutyCycle(channel, payload/100, onStep);
+                this.pwm.channelOff(channel, done);
             }
 		});
     }
