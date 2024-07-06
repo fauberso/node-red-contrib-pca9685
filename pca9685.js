@@ -72,6 +72,7 @@ module.exports = function(RED) {
 		this.channel = config.channel;
 		this.payload = config.payload;
 		this.onStep = config.onStep;
+		this.power = config.power;
 		var node = this;
 
 		this.on("input", function(msg, send, done) {
@@ -80,7 +81,7 @@ module.exports = function(RED) {
 			var channel = parseInt(msg.channel || this.channel || 0);
 			var payload = parseInt(msg.payload || this.payload || 0);
 			var onStep = parseInt(msg.onStep || this.onStep || 0);
-			var power = parseInt(msg.power || 1);
+			var power = parseInt(msg.power || this.power || 1);
 			
 			if (debugOption) {
 				if (power !== 0) {
