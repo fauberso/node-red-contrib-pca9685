@@ -111,7 +111,7 @@ module.exports = function(RED) {
                     this.pwm.allChannelsOff(done);
                 }
             } else if (power !== 0) {
-                this.pwm.channelOn(channel, setChannelPulse(i));
+                this.pwm.channelOn(channel, setChannelPulse(channel));
             } else {
                 this.pwm.channelOff(channel, done);
             }
