@@ -104,8 +104,8 @@ module.exports = function(RED) {
 					}
 				}
 				if (!channelPowerState[channel]) {
-					this.pwm.channelOn(channel, setPulse);
 					channelPowerState[channel] = true;
+					this.pwm.channelOn(channel, setPulse);
 				} else {
 					setPulse();
 				}
