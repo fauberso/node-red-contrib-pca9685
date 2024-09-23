@@ -26,69 +26,109 @@ module.exports = function(RED) {
 		debugOption = true;
 	}
 
-    // The Server Definition - this opens (and closes) the connection
-    function pca9685Node(config) {
-        RED.nodes.createNode(this, config);
+	// The Server Definition - this opens (and closes) the connection
+	function pca9685Node(config) {
+		RED.nodes.createNode(this, config);
 
-        // node configuration
+		// node configuration
 	var deviceNumber = parseInt(config.deviceNumber);
-        if (isNaN(deviceNumber)) {
-            deviceNumber = 1;
-        }
-	    
-        var options = {
-            i2c: i2cBus.openSync(deviceNumber),
-            address: parseInt(config.address) || 0x40,
-            frequency: parseInt(config.frequency) || 50,
-            debug: debugOption
-        };
+		if (isNaN(deviceNumber)) {
+			deviceNumber = 1;
+		}
+		
+		var options = {
+			i2c: i2cBus.openSync(deviceNumber),
+			address: parseInt(config.address) || 0x40,
+			frequency: parseInt(config.frequency) || 50,
+			debug: debugOption
+		};
 
-        this.pwm = new Pca9685Driver(options, function startLoop(err) {
-            if (err) {
-                console.error("Error initializing PCA9685");
-             } else {
-            	console.log("Initialized PCA9685");
-            }
-        });
-     
-        
-        this.on("close", function() {
-            if (this.pwm != null) {
-            	this.pwm.dispose()
-            }
-        });
-    }
-    RED.nodes.registerType("PCA9685", pca9685Node);
+		this.pwm = new Pca9685Driver(options, function startLoop(err) {
+			if (err) {
+				console.error("Error initializing PCA9685");
+			 } else {
+				console.log("Initialized PCA9685");
+			}
+		});
+	 
+		
+		this.on("close", function() {
+			if (this.pwm != null) {
+				this.pwm.dispose()
+			}
+		});
+	}
+	RED.nodes.registerType("PCA9685", pca9685Node);
+
+	var allChannelsCode = -1;
+	var channelPowerState = Array(16).fill(false);
 	
-    function pca9685OutputNode(config) {
-        RED.nodes.createNode(this,config);
-        this.pca9685 = config.pca9685;
-        this.pca9685Node = RED.nodes.getNode(this.pca9685);
-        this.pwm = this.pca9685Node.pwm;
-        this.unit = config.unit;
-        this.channel = config.channel;
-        this.payload = config.payload;
-        this.onStep = config.onStep;
+	function pca9685OutputNode(config) {
+		RED.nodes.createNode(this,config);
+		this.pca9685 = config.pca9685;
+		this.pca9685Node = RED.nodes.getNode(this.pca9685);
+		this.pwm = this.pca9685Node.pwm;
+		this.unit = config.unit;
+		this.channel = config.channel;
+		this.payload = config.payload;
+		this.onStep = config.onStep;
+		this.power = config.power;
+		var node = this;
 
-		this.on("input", function(msg) {
+		this.on("input", function(msg, send, done) {
+			done = done || function (err) { if (err) { node.error(err, msg) } };
 			var unit = msg.unit || this.unit || "percent (assumed)";
 			var channel = parseInt(msg.channel || this.channel || 0);
 			var payload = parseInt(msg.payload || this.payload || 0);
 			var onStep = parseInt(msg.onStep || this.onStep || 0);
+			var power = parseInt(msg.power || this.power || 1);
 			
 			if (debugOption) {
-				console.log("Set PCA9685 "+this.pwm+" Output "+channel+" to "+payload+" "+unit);
+				if (power !== 0) {
+					console.log("Set PCA9685 "+this.pwm+" Output "+channel+" to "+payload+" "+unit);
+				} else {
+					console.log("Set PCA9685 "+channel+" to OFF");
+				}
 			}
-			
-			if (unit == "microseconds") {
-				this.pwm.setPulseLength(channel, payload, onStep);
-            } else if (unit == "steps") {
-            	this.pwm.setPulseRange(channel, onStep, payload);
-            } else {
-            	this.pwm.setDutyCycle(channel, payload/100, onStep);
-            }
+
+			const setChannelPulse = (channel) => {
+				const setPulse = (err) => {
+					if (err) {
+						return done(err);
+					}
+					if (unit == "microseconds") {
+						this.pwm.setPulseLength(channel, payload, onStep, done);
+					} else if (unit == "steps") {
+						this.pwm.setPulseRange(channel, onStep, payload, done);
+					} else {
+						this.pwm.setDutyCycle(channel, payload/100, onStep, done);
+					}
+				}
+				if (!channelPowerState[channel]) {
+					channelPowerState[channel] = true;
+					this.pwm.channelOn(channel, setPulse);
+				} else {
+					setPulse();
+				}
+			}
+
+			if (channel === allChannelsCode) { // Do operation for all channels
+				if (power !== 0) {
+					for (let i = 0; i < 16; i++) {
+						setChannelPulse(i);
+					}
+				} else {
+					channelPowerState = Array(16).fill(false);
+					this.pwm.allChannelsOff(done);
+				}
+			} else if (power !== 0) {
+				setChannelPulse(channel)
+			} else {
+				channelPowerState[channel] = false;
+				this.pwm.channelOff(channel, done);
+			}
 		});
-    }
-    RED.nodes.registerType("PCA9685 out",pca9685OutputNode);
+	}
+	RED.nodes.registerType("PCA9685 out",pca9685OutputNode);
 }
  
